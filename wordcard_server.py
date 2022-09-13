@@ -1,6 +1,9 @@
 import flask
+from flask import make_response, request
 import requests
 from bs4 import BeautifulSoup
+import json
+import base64
 
 app = flask.Flask(__name__)
 
@@ -31,9 +34,48 @@ def getWordPronunciationUrl(word):
 
     return pronUrl
 
-u = getWordPronunciationUrl("alga")
 
+# another method: use gtts package which utilize translate.google.com
+API_KEY = "AIzaSyBmPoJhNtlJlI0eNvTsKiPvGNcyu678q-4"
+def TextToSpeech(text):
+  ttsUrl = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={API_KEY}"
+  headers = {
+    "Accept": "application/json",
+    "Content-Type": "application/json"
+  }
+  data = {
+    "input": {
+      "text": text
+    },
+    "voice": {
+      "languageCode": "en-US",
+      "name": "en-US-Wavenet-F"
+    },
+    "audioConfig": {
+      "audioEncoding": "MP3"
+    }
+  }
+  res = requests.post(url=ttsUrl, headers=headers, data=str(data))
+  jr = json.loads(res.text)["audioContent"]
+  if jr == None:
+    return None
+  return base64.b64decode(jr)
 
 @app.route("/word/<word>/pron/url")
 def requestPronUrlFor(word):
-    return getWordPronunciationUrl(word)
+    res = make_response(getWordPronunciationUrl(word))
+    res.mimetype = "text/plain"
+    return res
+
+
+@app.route("/tts", methods=["POST", "GET"])
+def tts():
+  if request.method == "POST":
+    txt = request.form["text"]
+  elif request.method == "GET":
+    txt = request.args.get("text")
+  if txt == None or len(txt) == 0:
+    txt = "oops! Empty text!"
+  res = make_response(TextToSpeech(txt))
+  res.mimetype = "audio/mp3"
+  return res
