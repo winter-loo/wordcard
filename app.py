@@ -9,34 +9,6 @@ import cloudscraper
 
 app = flask.Flask(__name__)
 
-def getWordPronunciationUrl(word):
-    queryUrl = f"https://www.merriam-webster.com/dictionary/{word}"
-    res = requests.get(queryUrl)
-    res.raise_for_status()
-    html = res.text
-    soup = BeautifulSoup(html, 'html.parser')
-
-    playPronElement = soup.select("a[class*='play-pron hw-play-pron']")
-    if len(playPronElement) == 0:
-        return ""
-    hwPlayPronEl = playPronElement[0]
-    aProps = {
-        "lang": hwPlayPronEl.get("data-lang"),
-        "dir": hwPlayPronEl.get("data-dir"),
-        "file": hwPlayPronEl.get("data-file"),
-        "title": hwPlayPronEl.get("data-title"),
-        "type": hwPlayPronEl.get("data-type")
-    }
-
-    pronUrl = ""
-    if aProps["type"] == "spell_it":
-        pronUrl = f"https://merriam-webster.com/assets/mw/spellit-files/{aProps['file']}.mp3"
-    else:
-        pronUrl = f"https://media.merriam-webster.com/audio/prons/{aProps['lang'].replace('_', '/')}/mp3/{aProps['dir']}/{aProps['file']}.mp3"
-
-    return pronUrl
-
-
 # another method: use gtts package which utilize translate.google.com
 API_KEY = "AIzaSyBmPoJhNtlJlI0eNvTsKiPvGNcyu678q-4"
 def textToSpeech(text):
@@ -175,13 +147,64 @@ def searchWordInCollinsDict(word):
     return senses
 
 
+def searchWordInWebsterDict(word):
+    url = f"https://www.merriam-webster.com/dictionary/{word}"
+
+    try:
+        res = requests.get(url)
+    except Exception as e:
+        print(e)
+        return {}
+    source = res.text
+    soup = BeautifulSoup(source, "html.parser")
+
+    def getPronSoundUrl(soup):
+        play_pron_el = soup.find("a", class_="hw-play-pron")
+        if play_pron_el == None:
+            return ""
+        a_props = {
+            "lang": play_pron_el.get("data-lang"),
+            "dir": play_pron_el.get("data-dir"),
+            "file": play_pron_el.get("data-file"),
+            "title": play_pron_el.get("data-title"),
+            "type": play_pron_el.get("data-type")
+        }
+
+        sound_url = ""
+        if a_props["type"] == "spell_it":
+            sound_url = f"https://merriam-webster.com/assets/mw/spellit-files/{a_props['file']}.mp3"
+        else:
+            sound_url = f"https://media.merriam-webster.com/audio/prons/{a_props['lang'].replace('_', '/')}/mp3/{a_props['dir']}/{a_props['file']}.mp3"
+        return sound_url
+
+    word_def = {
+        "pron": getPronSoundUrl(soup),
+        "senses": []
+    }
+
+    sense_els = soup.select("#dictionary-entry-1 .sense .dt")
+
+    senses = []
+    for sense_el in sense_els:
+        sense = {}
+        sense["def"] = sense_el.find("span", class_="dtText").text[2:]
+        quote_els = sense_el.find_all("span", class_="ex-sent")
+        quotes = []
+        for quote_el in quote_els:
+            quote = { "quote": quote_el.text }
+            quotes.append(quote)
+        if len(quotes):
+            sense["cits"] = quotes
+        senses.append(sense)
+    word_def["senses"] = senses
+    return word_def
+
+
 # ------- API list --------------
 
-@app.route("/word/<word>/pron/url")
-def request_pron_url_for(word):
-    res = make_response(getWordPronunciationUrl(word))
-    res.mimetype = "text/plain"
-    return res
+@app.route("/word/<word>/def/from/webster")
+def search_word_from_webster(word):
+  return searchWordInWebsterDict(word)
 
 
 @app.route("/tts", methods=["POST", "GET"])
@@ -196,13 +219,13 @@ def tts():
   res.mimetype = "audio/mp3"
   return res
 
-@app.route("/images/for/<keyword>")
-def search_images(keyword):
-  imgs = searchImages(keyword)
+@app.route("/word/<word>/images")
+def search_images(word):
+  imgs = searchImages(word)
   return { "data": imgs }
 
 @app.route("/word/<word>/def/from/collins")
-def word_def_collins(word):
+def search_word_from_collins(word):
   return searchWordInCollinsDict(word)  
 
 # ------- end API list --------------
