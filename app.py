@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 import json
 import base64
 import pyjson5
+import cloudscraper
 
 app = flask.Flask(__name__)
 
@@ -120,6 +121,56 @@ def searchImages(keyword, dump_sr=False):
     getAllImages(search_results["data"], imgs)
     return imgs
 
+
+def searchWordInCollinsDict(word):
+    """
+    A requests.get(url) is forbiddened by collins website.
+    Solution is to use cloudscraper module.
+
+    returns python dictionary:
+    [{
+        "def": ".....",
+        "cits": [{"quote": ".....", "sound": ".....mp3"}]
+     }]
+    """
+    url = f'https://www.collinsdictionary.com/us/dictionary/english/{word}'
+
+    scraper = cloudscraper.create_scraper()
+    try:
+        res = scraper.get(url)
+    except Exception as e:
+        print(e)
+        return []
+
+    source = res.text
+    soup = BeautifulSoup(source, 'html.parser')
+    sense_els = soup.select("div.cobuild div.sense")
+    senses = []
+    for sense_el in sense_els:
+        sense = {}
+        def_el = sense_el.find("div", class_="def")
+        if def_el:
+            sense["def"] = def_el.text.strip().replace('\n', ' ')
+        elif "def" in sense_el["class"]:
+            sense["def"] = sense_el.text.strip().replace('\n', ' ')
+        cit_els = sense_el.find_all("div", class_="cit")
+        cits = []
+        for cit_el in cit_els:
+            cit = {}
+            quote_el = cit_el.find("span", class_="quote")
+            sound_el = cit_el.find("a", class_="hwd_sound")
+            if quote_el:
+                cit["quote"] = quote_el.text.strip().replace('\n', ' ')
+            if sound_el:
+                cit["sound"] = sound_el["data-src-mp3"]
+            if quote_el or sound_el:
+                cits.append(cit)
+        if len(cits):
+            sense["cits"] = cits
+        senses.append(sense)
+    return senses
+
+
 # ------- API list --------------
 
 @app.route("/word/<word>/pron/url")
@@ -145,5 +196,9 @@ def tts():
 def search_images(keyword):
   imgs = searchImages(keyword)
   return { "data": imgs }
+
+@app.route("/word/<word>/def/from/collins")
+def word_def_collins(word):
+  return searchWordInCollinsDict(word)  
 
 # ------- end API list --------------
