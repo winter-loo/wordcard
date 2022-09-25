@@ -148,11 +148,14 @@ def searchWordInCollinsDict(word):
     senses = []
     for sense_el in sense_els:
         sense = {}
+        has_def = True
         def_el = sense_el.find("div", class_="def")
         if def_el:
             sense["def"] = def_el.text.strip().replace('\n', ' ')
         elif "def" in sense_el["class"]:
             sense["def"] = sense_el.text.strip().replace('\n', ' ')
+        else:
+            has_def = False
         cit_els = sense_el.find_all("div", class_="cit")
         cits = []
         for cit_el in cit_els:
@@ -167,7 +170,8 @@ def searchWordInCollinsDict(word):
                 cits.append(cit)
         if len(cits):
             sense["cits"] = cits
-        senses.append(sense)
+        if has_def or len(cits):
+            senses.append(sense)
     return senses
 
 
