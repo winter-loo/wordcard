@@ -3,6 +3,7 @@ import pyjson5
 
 def SearchImage(keyword, dump_sr=False):
     url = f'https://www.google.com/search?q={keyword}&tbm=isch'
+    print(url)
 
     headers = {
         "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36"
@@ -11,9 +12,14 @@ def SearchImage(keyword, dump_sr=False):
     try:
         res = requests.get(url, headers=headers)
         if res.status_code != 200:
-            return
-    except Exception:
-        return
+            print(f'status: {res.status_code}')
+            return []
+    except Exception as e:
+        print(e)
+        return []
+    page_source = res.text
+    with open("foo.html", "w") as f:
+      f.write(page_source)
 
     def scrape_search_result(page_source):
         init_data_cbs = []
@@ -46,7 +52,7 @@ def SearchImage(keyword, dump_sr=False):
                 else:
                     getAllImages(item, imgs)
     imgs = []
-    search_results = scrape_search_result(res.text)
+    search_results = scrape_search_result(page_source)
     if dump_sr:
         import json
         with open('foo.json', 'w') as f:
