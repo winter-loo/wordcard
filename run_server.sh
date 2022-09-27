@@ -4,6 +4,8 @@ cwd=$(dirname $0)
 
 pushd $cwd
 
+export GOOGLE_APPLICATION_CREDENTIALS=`pwd`/my-translation-sa-key.json
+
 if [ -d .venv ]; then
   source .venv/bin/activate
 else

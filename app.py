@@ -6,6 +6,7 @@ import json
 import base64
 import pyjson5
 import cloudscraper
+from google.cloud import translate
 
 app = flask.Flask(__name__)
 
@@ -200,6 +201,28 @@ def searchWordInWebsterDict(word):
     return word_def
 
 
+def translateText(text):
+  """
+  done by  using google translate api
+
+  GOOGLE_APPLICATION_CREDENTIALS environment variable must be set
+  """
+  if len(text) == 0:
+    return ""
+  parent = "projects/tts-ldd-cool"
+  client = translate.TranslationServiceClient()
+
+  target_language_code = "zh-cn"
+
+  response = client.translate_text(
+      contents=[text],
+      target_language_code=target_language_code,
+      parent=parent,
+  )
+  if len(response.translations) > 0:
+    return response.translations[0].translated_text
+  return ""
+
 # ------- API list --------------
 
 @app.route("/word/<word>/def/from/webster")
@@ -227,5 +250,14 @@ def search_images(word):
 @app.route("/word/<word>/def/from/collins")
 def search_word_from_collins(word):
   return searchWordInCollinsDict(word)  
+
+@app.route("/translation", methods=["POST", "GET"])
+def translate_text():
+  text = ""
+  if request.method == "POST":
+    text = request.form["text"]
+  elif request.method == "GET":
+    text = request.args.get("text")
+  return { "translated": translateText(text) }
 
 # ------- end API list --------------
