@@ -1,5 +1,6 @@
 import flask
 from flask import make_response, request
+from flask_cors import CORS, cross_origin
 import requests
 from bs4 import BeautifulSoup
 import json
@@ -9,6 +10,7 @@ import cloudscraper
 from google.cloud import translate
 
 app = flask.Flask(__name__)
+CORS(app)
 
 # another method: use gtts package which utilize translate.google.com
 API_KEY = "AIzaSyBmPoJhNtlJlI0eNvTsKiPvGNcyu678q-4"
@@ -259,5 +261,12 @@ def translate_text():
   elif request.method == "GET":
     text = request.args.get("text")
   return { "translated": translateText(text) }
+
+@app.route("/add", methods=["POST"])
+@cross_origin()
+def add_word():
+  text = request.form["text"]
+  print(f"----add text: {text}-----")
+  return {"echo": text}
 
 # ------- end API list --------------
