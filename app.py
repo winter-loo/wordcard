@@ -1,3 +1,6 @@
+import aiohttp
+import aiofiles
+import asyncio
 import os
 import flask
 from flask import make_response, request
@@ -259,8 +262,7 @@ ImageExtMap = {
 
 @app.route("/word/<word>/images")
 def search_images(word):
-    imgs = searchImages(word)
-    count = 0
+    img_urls = searchImages(word)
     new_urls = []
     try:
         os.makedirs(f"static/images/{word}")
@@ -269,21 +271,54 @@ def search_images(word):
     except Exception as e:
         print(e)
         return []
-    for img_url in imgs:
-        r = requests.get(img_url)
-        if r.status_code != 200:
-            continue
-        img_ext = ImageExtMap.get(r.headers["Content-Type"])
-        if img_ext == None:
-            continue
-        count += 1
-        filename = f"static/images/{word}/{count}.{img_ext}"
-        with open(filename, "wb") as out:
-            out.write(r.content)
-        new_urls.append(f"{request.scheme}://{request.host}/{filename}")
-        # it seems that swiftui cannot receive a lot of data in a rush
-        if count >=  10:
-            break
+
+    async def __get_image(session, url):
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                return (None, None)
+            img_data = await resp.read()
+            img_ext = ImageExtMap.get(resp.headers["content-type"])
+            return (img_ext, img_data)
+
+    async def __save_image(filename, file_content):
+        async with aiofiles.open(filename, mode="wb") as out:
+            await out.write(file_content)
+
+    async def __async_download_images():
+        start = 0
+        end = 10
+        count = 0
+        file_tasks = []
+        async with aiohttp.ClientSession() as session:
+            while True:
+                tasks = []
+                for url in img_urls[start:end]:
+                    tasks.append(asyncio.ensure_future(__get_image(session, url)))
+
+                if len(file_tasks):
+                    await asyncio.gather(*file_tasks)
+                    file_tasks = []
+
+                img_contents = await asyncio.gather(*tasks)
+
+                for img_ext, img_data in img_contents:
+                    if img_ext == None:
+                        continue
+                    count += 1
+                    filename = f"static/images/{word}/{count}.{img_ext}"
+                    new_urls.append(f"{request.scheme}://{request.host}/{filename}")
+
+                    file_tasks.append(asyncio.ensure_future(__save_image(filename, img_data)))
+                    # it seems that swiftui cannot receive a lot of data in a rush
+
+                if count >= 10:
+                    if len(file_tasks):
+                        await asyncio.gather(*file_tasks)
+                    break
+                else:
+                    start = end
+                    end = end + 10 - count
+    asyncio.run(__async_download_images())
     return { "data": new_urls }
 
 @app.route("/word/<word>/def/from/collins")
