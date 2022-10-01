@@ -14,6 +14,8 @@ def searchWord(word):
 
     source = res.text
     soup = BeautifulSoup(source, 'html.parser')
+    defs = {}
+    defs["pronUrl"] = soup.select("div.cobuild .hwd_sound.audio_play_button")[0]["data-src-mp3"]
     sense_els = soup.select("div.cobuild div.sense")
     senses = []
     for sense_el in sense_els:
@@ -38,7 +40,8 @@ def searchWord(word):
         if len(cits):
             sense["cits"] = cits
         senses.append(sense)
-    return senses
+    defs["senses"] = senses
+    return defs
 
 if __name__ == '__main__':
     word = 'commute'

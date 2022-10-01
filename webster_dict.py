@@ -43,7 +43,7 @@ def searchWord(word):
     for sense_el in sense_els:
         sense = {}
         sense["def"] = sense_el.find("span", class_="dtText").text[2:]
-        quote_els = sense_el.find_all("span", class_="ex-sent")
+        quote_els = sense_el.select(".ex-sent.t")
         quotes = []
         for quote_el in quote_els:
             quote = { "quote": quote_el.text }
@@ -54,4 +54,4 @@ def searchWord(word):
     word_def["senses"] = senses
     return word_def
 
-print(searchWord('communal'))
+print(searchWord('coincide'))

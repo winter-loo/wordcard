@@ -1,3 +1,4 @@
+import os
 import flask
 from flask import make_response, request
 from flask_cors import CORS, cross_origin
@@ -119,6 +120,9 @@ def searchWordInCollinsDict(word):
 
     source = res.text
     soup = BeautifulSoup(source, 'html.parser')
+    defs = {}
+    defs["pronUrl"] = soup.select("div.cobuild .hwd_sound.audio_play_button")[0]["data-src-mp3"]
+
     sense_els = soup.select("div.cobuild div.sense")
     senses = []
     for sense_el in sense_els:
@@ -147,7 +151,8 @@ def searchWordInCollinsDict(word):
             sense["cits"] = cits
         if has_def or len(cits):
             senses.append(sense)
-    return senses
+    defs["senses"] = senses
+    return  defs
 
 
 def searchWordInWebsterDict(word):
@@ -181,7 +186,7 @@ def searchWordInWebsterDict(word):
         return sound_url
 
     word_def = {
-        "pron": getPronSoundUrl(soup),
+        "pronUrl": getPronSoundUrl(soup),
         "senses": []
     }
 
@@ -191,7 +196,7 @@ def searchWordInWebsterDict(word):
     for sense_el in sense_els:
         sense = {}
         sense["def"] = sense_el.find("span", class_="dtText").text[2:]
-        quote_els = sense_el.find_all("span", class_="ex-sent")
+        quote_els = sense_el.select(".ex-sent.t")
         quotes = []
         for quote_el in quote_els:
             quote = { "quote": quote_el.text }
@@ -244,10 +249,42 @@ def tts():
   res.mimetype = "audio/mp3"
   return res
 
+ImageExtMap = {
+    "image/jpeg": "jpg",
+    "image/gif": "gif",
+    "image/png": "png",
+    "image/svg+xml": "svg",
+    "image/webp": "webp"
+}
+
 @app.route("/word/<word>/images")
 def search_images(word):
-  imgs = searchImages(word)
-  return { "data": imgs }
+    imgs = searchImages(word)
+    count = 0
+    new_urls = []
+    try:
+        os.makedirs(f"static/images/{word}")
+    except FileExistsError:
+        pass
+    except Exception as e:
+        print(e)
+        return []
+    for img_url in imgs:
+        r = requests.get(img_url)
+        if r.status_code != 200:
+            continue
+        img_ext = ImageExtMap.get(r.headers["Content-Type"])
+        if img_ext == None:
+            continue
+        count += 1
+        filename = f"static/images/{word}/{count}.{img_ext}"
+        with open(filename, "wb") as out:
+            out.write(r.content)
+        new_urls.append(f"{request.scheme}://{request.host}/{filename}")
+        # it seems that swiftui cannot receive a lot of data in a rush
+        if count >=  10:
+            break
+    return { "data": new_urls }
 
 @app.route("/word/<word>/def/from/collins")
 def search_word_from_collins(word):
