@@ -14,6 +14,10 @@ else
   pip install -r requirements.txt
 fi
 
+if [ ! -f data.db ]; then
+  python create_database.db
+fi
+
 
 netstat -apn | grep 1500 | grep python | grep LISTEN
 if [ $? -eq 0 ]; then

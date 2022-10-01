@@ -12,6 +12,7 @@ import base64
 import pyjson5
 import cloudscraper
 from google.cloud import translate
+import sqlite3
 
 app = flask.Flask(__name__)
 CORS(app)
@@ -337,8 +338,61 @@ def translate_text():
 @app.route("/add", methods=["POST"])
 @cross_origin()
 def add_word():
-  text = request.form["text"]
-  print(f"----add text: {text}-----")
-  return {"echo": text}
+  data = request.get_json()
+  try:
+    con = sqlite3.connect("data.db")
+    cur = con.cursor()
+    cur.execute("INSERT INTO word VALUES(?, ?, ?, ?)",
+            (data["literal"], data["pronUrl"], data["note"], data["img_url"]))
+    con.commit()
+  except sqlite3.IntegrityError:
+    con.close()
+    return flask.redirect(flask.url_for("update_word"), code=307)
+  except Exception as e:
+    app.logger.error("%s", str(e))
+  finally:
+    con.close()
+  return { "error": 0 }
+
+@app.route("/update", methods=["POST"])
+@cross_origin()
+def update_word():
+    data = request.get_json()
+    literal = data["literal"]
+    if literal is None:
+        return { "error": 1 }
+    pairs = []
+    pronUrl = data["pronUrl"]
+    if pronUrl:
+        pairs.append(("pron_url", pronUrl))
+    note =  data["note"]
+    if note:
+        pairs.append(("note", note))
+    img_url = data["img_url"]
+    if img_url:
+        pairs.append(("img_url", img_url))
+
+    columns = ""
+    values = []
+    firstKey = True
+    for key, value in pairs:
+        if firstKey:
+            firstKey = False
+            columns = f"{key} = ?"
+        else:
+            columns += f", {key} = ?"
+        values.append(value)
+    values.append(literal)
+    update_sql =  f"UPDATE word SET {columns} where literal = ?"
+    try:
+        con = sqlite3.connect("data.db")
+        cur = con.cursor()
+        cur.execute(update_sql, tuple(values))
+        con.commit()
+    except Exception as e:
+        app.logger.error("%s", str(e))
+    finally:
+        con.close()
+    return { "error": 0 }
 
 # ------- end API list --------------
