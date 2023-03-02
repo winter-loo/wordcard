@@ -15,11 +15,12 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 });
 
 const postText = text => {
-  console.log('post text: ', text);
+  json_obj = { literal: text }
+  console.log('post json: ', json_obj);
   (async () => {
-    const response = await fetch('http://pi.ldd.cool:1500/add', {
+    const response = await fetch('http://ldd.cool:1500/add', {
       method: 'POST',
-      body: 'text=' + text,
+      body: 'json=' + encodeURIComponent(JSON.stringify(json_obj)),
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
       }
