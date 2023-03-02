@@ -15,7 +15,7 @@ else
 fi
 
 if [ ! -f data.db ]; then
-  python create_database.db
+  python create_database.py
 fi
 
 

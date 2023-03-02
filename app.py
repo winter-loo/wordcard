@@ -13,6 +13,7 @@ import pyjson5
 import cloudscraper
 from google.cloud import translate
 import sqlite3
+import jsonschema
 
 app = flask.Flask(__name__)
 CORS(app)
@@ -335,15 +336,32 @@ def translate_text():
     text = request.args.get("text")
   return { "translated": translateText(text) }
 
+WORD_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "literal": { "type": "string" },
+        "pronUrl": { "type":  "string" },
+        "note": { "type": "string" },
+        "img_url": { "type": "string" }
+    },
+    "required": ["literal"]
+}
+
 @app.route("/add", methods=["POST"])
 @cross_origin()
 def add_word():
-  data = request.get_json()
+  data = request.form["json"]
+  data = json.loads(data)
+  try:
+    jsonschema.validate(instance=data, schema=WORD_SCHEMA)
+  except jsonschema.exceptions.ValidationError as e:
+    return { "error": 1, "reason": str(e) }
+    
   try:
     con = sqlite3.connect("data.db")
     cur = con.cursor()
     cur.execute("INSERT INTO word VALUES(?, ?, ?, ?)",
-            (data["literal"], data["pronUrl"], data["note"], data["img_url"]))
+            (data["literal"], data.get("pronUrl"), data.get("note"), data.get("img_url")))
     con.commit()
   except sqlite3.IntegrityError:
     con.close()
@@ -357,20 +375,16 @@ def add_word():
 @app.route("/update", methods=["POST"])
 @cross_origin()
 def update_word():
-    data = request.get_json()
+    data = request.form["json"]
+    data = json.loads(data)
     literal = data["literal"]
     if literal is None:
         return { "error": 1 }
-    pairs = []
-    pronUrl = data["pronUrl"]
-    if pronUrl:
-        pairs.append(("pron_url", pronUrl))
-    note =  data["note"]
-    if note:
-        pairs.append(("note", note))
-    img_url = data["img_url"]
-    if img_url:
-        pairs.append(("img_url", img_url))
+    pairs = [
+        ("pron_url", data.get("pronUrl")),
+        ("note", data.get("note")),
+        ("img_url", data.get("img_url")),
+    ]
 
     columns = ""
     values = []
