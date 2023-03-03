@@ -18,7 +18,7 @@ const postText = text => {
   json_obj = { literal: text }
   console.log('post json: ', json_obj);
   (async () => {
-    const response = await fetch('http://ldd.cool:1500/add', {
+    const response = await fetch('http://ldd.cool:1500/memo/add', {
       method: 'POST',
       body: 'json=' + encodeURIComponent(JSON.stringify(json_obj)),
       headers: {
