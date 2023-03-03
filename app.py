@@ -336,7 +336,7 @@ def translate_text():
     text = request.args.get("text")
   return { "translated": translateText(text) }
 
-WORD_SCHEMA = {
+MEMO_SCHEMA = {
     "type": "object",
     "properties": {
         "literal": { "type": "string" },
@@ -347,34 +347,34 @@ WORD_SCHEMA = {
     "required": ["literal"]
 }
 
-@app.route("/add", methods=["POST"])
+@app.route("/memo/add", methods=["POST"])
 @cross_origin()
-def add_word():
+def add_memo():
   data = request.form["json"]
   data = json.loads(data)
   try:
-    jsonschema.validate(instance=data, schema=WORD_SCHEMA)
+    jsonschema.validate(instance=data, schema=MEMO_SCHEMA)
   except jsonschema.exceptions.ValidationError as e:
     return { "error": 1, "reason": str(e) }
     
   try:
     con = sqlite3.connect("data.db")
     cur = con.cursor()
-    cur.execute("INSERT INTO word VALUES(?, ?, ?, ?)",
+    cur.execute("INSERT INTO memo VALUES(?, ?, ?, ?)",
             (data["literal"], data.get("pronUrl"), data.get("note"), data.get("img_url")))
     con.commit()
   except sqlite3.IntegrityError:
     con.close()
-    return flask.redirect(flask.url_for("update_word"), code=307)
+    return flask.redirect(flask.url_for("update_memo"), code=307)
   except Exception as e:
     app.logger.error("%s", str(e))
   finally:
     con.close()
   return { "error": 0 }
 
-@app.route("/update", methods=["POST"])
+@app.route("/memo/update", methods=["POST"])
 @cross_origin()
-def update_word():
+def update_memo():
     data = request.form["json"]
     data = json.loads(data)
     literal = data["literal"]
@@ -397,7 +397,7 @@ def update_word():
             columns += f", {key} = ?"
         values.append(value)
     values.append(literal)
-    update_sql =  f"UPDATE word SET {columns} where literal = ?"
+    update_sql =  f"UPDATE memo SET {columns} where literal = ?"
     try:
         con = sqlite3.connect("data.db")
         cur = con.cursor()
@@ -408,5 +408,23 @@ def update_word():
     finally:
         con.close()
     return { "error": 0 }
+
+
+@app.route("/memo/list", methods=["GET"])
+@cross_origin()
+def list_memo():
+    sql =  "select literal, note from memo"
+    memos = []
+    try:
+        con = sqlite3.connect("data.db")
+        cur = con.cursor()
+        res = cur.execute(sql)
+        for row in res:
+            memos.append({"literal": row[0], "note": row[1]})
+    except Exception as e:
+        app.logger.error("%s", str(e))
+    finally:
+        con.close()
+    return { "error": 0, "data": memos }
 
 # ------- end API list --------------

@@ -18,13 +18,14 @@ if [ ! -f data.db ]; then
   python create_database.py
 fi
 
+PORT=1500
 
-netstat -apn | grep 1500 | grep python | grep LISTEN
-if [ $? -eq 0 ]; then
-  exit 0
+pid=$(ps aux | grep flask | grep $PORT | awk '{print $2}')
+if [ -n $pid ]; then
+  kill $pid
 fi
 
-flask run --host=0.0.0.0 --port 1500 > app.log 2>&1 &
+flask run --host=0.0.0.0 --port $PORT > app.log 2>&1 &
 flask routes
 echo "-------------------------"
 tail -12 app.log
