@@ -4,3 +4,4 @@ app.log
 my-translation-sa-key.json
 static/
 data.db
+.DS_Store
