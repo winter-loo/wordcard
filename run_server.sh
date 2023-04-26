@@ -6,6 +6,21 @@ pushd $cwd
 
 export GOOGLE_APPLICATION_CREDENTIALS=`pwd`/my-translation-sa-key.json
 
+APP_LOG_LEVEL="ERROR"
+# Override log level with LL environment variable, if set
+if [ -n "$LL" ]; then
+    case "$LL" in
+        DEBUG|INFO|ERROR|NOTSET|WARNING|CRITICAL)
+            APP_LOG_LEVEL="$LL"
+            ;;
+        *)
+            echo "Invalid log level: $LL" >&2
+            exit 1
+            ;;
+    esac
+fi
+export APP_LOG_LEVEL
+
 if [ -d .venv ]; then
   source .venv/bin/activate
 else

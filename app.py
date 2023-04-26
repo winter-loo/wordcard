@@ -18,6 +18,15 @@ import jsonschema
 app = flask.Flask(__name__)
 CORS(app)
 
+# Set the log level based on the APP_LOG_LEVEL environment variable,
+# or use the default level of WARNING if the variable is not set or invalid.
+app_log_level = os.environ.get('APP_LOG_LEVEL', 'WARNING').upper()
+valid_log_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL', 'NOTSET']
+if app_log_level not in valid_log_levels:
+    app_log_level = 'ERROR'
+
+app.logger.setLevel(app_log_level)
+
 # another method: use gtts package which utilize translate.google.com
 API_KEY = "AIzaSyBmPoJhNtlJlI0eNvTsKiPvGNcyu678q-4"
 def textToSpeech(text):
@@ -427,4 +436,10 @@ def list_memo():
         con.close()
     return { "error": 0, "data": memos }
 
+
+@app.route("/xiaodu", methods=["POST"])
+def xiaodu_service():
+    req = request.get_json()
+    app.logger.debug("get request => %s", str(req))
+    return { "error": 0 }
 # ------- end API list --------------
