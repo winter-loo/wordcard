@@ -7,7 +7,9 @@
     "service_worker": "background.js"
   },
   "permissions": [
-    "contextMenus"
+    "contextMenus",
+    "activeTab",
+    "scripting"
   ],
   "action": {
     "default_popup": "popup.html",
